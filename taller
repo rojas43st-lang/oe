@@ -1,0 +1,231 @@
+1. Responsabilidad de cada archivo Python
+
+Cada archivo tiene una función específica dentro de la aplicación.
+
+Archivo	Responsabilidad
+main.py	Inicia la aplicación FastAPI y conecta las rutas.
+rutas.py	Define las direcciones de la aplicación, como /login, /perfil y /objetos.
+seguridad.py	Maneja la autenticación, las sesiones y la verificación del usuario.
+usuarios.py	Contiene los datos de los usuarios y sus credenciales.
+
+¿Por qué es buena práctica separarlos?
+
+Porque permite organizar mejor el código, encontrar errores con mayor facilidad y modificar una función sin afectar innecesariamente las demás.
+
+2. ¿Qué significa separación de responsabilidades?
+
+Es un principio de programación que consiste en asignar a cada archivo o módulo una función específica.
+
+En este proyecto:
+
+main.py se encarga de iniciar la aplicación.
+rutas.py maneja las solicitudes de los usuarios.
+seguridad.py controla la autenticación.
+usuarios.py administra los datos de los usuarios.
+
+Esto evita tener todo el código en un solo archivo y facilita el mantenimiento.
+
+3. ¿Por qué main.py es tan breve?
+
+Porque la lógica principal está distribuida en otros archivos.
+
+En lugar de contener todas las rutas y funciones de autenticación, main.py se encarga principalmente de crear la aplicación y conectar los módulos.
+
+Esto indica que el proyecto utiliza un diseño modular, donde cada componente tiene una responsabilidad definida.
+
+4. ¿Qué es una sesión y por qué HTTP la necesita?
+
+Una sesión es un mecanismo que permite que la aplicación recuerde que un usuario ya inició sesión entre diferentes peticiones.
+
+HTTP es un protocolo sin estado: cada petición se procesa de forma independiente y no recuerda automáticamente las anteriores.
+
+Ejemplo:
+
+El usuario inicia sesión.
+El servidor verifica sus credenciales.
+El usuario visita /perfil.
+El servidor necesita saber si ese usuario ya está autenticado.
+
+La sesión permite mantener esa información entre peticiones.
+
+5. ¿Qué es el token de sesión?
+
+El token de sesión es un identificador que representa la sesión del usuario.
+
+El código utiliza: secrets.token_hex(16)
+
+Esta función genera 16 bytes de información aleatoria, representados como una cadena hexadecimal de 32 caracteres.
+
+6. Flujo completo del login
+
+El proceso puede explicarse mediante estos pasos:
+
+PASO 1. El usuario visita /login mediante una petición GET.
+PASO 2. FastAPI muestra el formulario de inicio de sesión.
+PASO 3. El usuario introduce su nombre de usuario y contraseña.
+PASO 4. El navegador envía los datos mediante POST /login.
+PASO 5. El sistema verifica las credenciales en usuarios.py.
+PASO 6. Si son válidas, se genera un token mediante secrets.token_hex(16).
+PASO 7. El token se guarda en sesiones.json, asociado al usuario.
+PASO 8. El servidor establece la cookie COOKIE_SESION.
+PASO 9. Se envía una redirección 303 hacia la página principal (/).
+PASO 10. El navegador realiza una nueva petición a / y envía la cookie de sesión.
+PASO 11. FastAPI verifica la sesión y muestra la página de inicio.
+
+7. Diferencia entre rutas públicas y privadas
+
+Rutas públicas:
+/login
+/logout
+
+Pueden utilizarse sin haber iniciado sesión. El login debe ser público porque el usuario necesita acceder a él antes de estar autenticado.
+
+Rutas privadas:
+/
+/perfil
+/objetos
+
+8. ¿Cómo funciona UsuarioDep?
+UsuarioDep es una dependencia de FastAPI que utiliza:
+
+Annotated[Usuario, Depends(get_current_user)]
+
+Cuando alguien entra en una ruta protegida, FastAPI ejecuta get_current_user().
+
+Esta función:
+
+Lee la cookie de sesión.
+Comprueba si existe el token.
+Busca el token en las sesiones guardadas.
+Obtiene el nombre de usuario asociado.
+Busca los datos del usuario.
+Devuelve el usuario si la sesión es válida.
+Redirige al login si no existe una sesión válida.
+Requieren una sesión válida. Solo los usuarios autenticados pueden acceder a ellas.
+
+9. Propósito de COOKIE_SESION
+
+La cookie almacena el token que identifica la sesión del usuario. El navegador la envía automáticamente en las siguientes peticiones.
+Se configura con:
+
+max_age=VIDA_SESION_SEGUNDOS
+
+max_age establece cuánto tiempo puede permanecer activa la cookie, expresado en segundos.
+Si no se configura, la cookie puede convertirse en una cookie de sesión del navegador y eliminarse cuando se cierre el navegador, dependiendo de su configuración.
+
+10. Funcionamiento de sesiones.json
+
+El archivo se utiliza de esta manera:
+
+Al iniciar la aplicación: se leen las sesiones guardadas.
+Al iniciar sesión: se crea un token y se guarda en el archivo.
+Al cerrar sesión: se elimina la sesión y se actualiza el archivo.
+Si el disco es de solo lectura: la aplicación no podrá guardar los cambios. Las nuevas sesiones no se conservarán correctamente.
+
+En Vercel, el sistema de archivos de las funciones no debe utilizarse como almacenamiento permanente.
+
+11. Sesiones locales frente a Vercel
+
+En desarrollo local:
+
+El archivo sesiones.json puede permanecer en el computador.
+Las sesiones pueden conservarse mientras el archivo siga disponible.
+El programa tiene acceso al disco local.
+
+En Vercel:
+
+Las funciones se ejecutan en entornos que pueden ser temporales.
+Diferentes instancias pueden tener archivos diferentes.
+Los cambios en el sistema de archivos no deben considerarse permanentes.
+Después de un reinicio o cold start, las sesiones guardadas en memoria pueden desaparecer o no coincidir con las anteriores.
+
+Para producción se recomienda utilizar una base de datos o un almacenamiento externo.
+
+Curiosidad: ¿Por qué se llaman cookies?
+
+El nombre proviene de la idea de una “magic cookie”, un pequeño dato que un programa entrega y que después se devuelve para identificar o recordar información. El término se popularizó en la informática antes de que se utilizara para los navegadores web.
+
+12. OAuth2, JWT y hashes de contraseña
+OAuth2: Es un protocolo que permite autorizar el acceso a recursos sin compartir directamente la contraseña con la aplicación que solicita el acceso.
+
+JWT: Es un formato de token que contiene información y puede utilizarse para transmitir datos de autenticación entre partes.
+
+Hash de contraseña: Es una transformación unidireccional que permite almacenar una representación de la contraseña sin guardar su texto original.
+
+No se utilizan en este proyecto porque es un ejemplo didáctico diseñado para aprender los fundamentos de login, cookies y sesiones. En una aplicación real se necesitan mecanismos de seguridad más completos.
+
+13. Riesgo de las contraseñas en texto plano
+
+Guardar contraseñas como:
+"password": "1234"
+
+es peligroso porque cualquier persona que obtenga el archivo podría leer las contraseñas directamente.
+En un proyecto real se deben almacenar utilizando algoritmos de hash seguros, como Argon2id o bcrypt, junto con medidas de protección adecuadas.
+
+14. ¿Qué es el secuestro de sesión?
+
+El session hijacking ocurre cuando una persona obtiene el token de sesión de otro usuario y lo utiliza para hacerse pasar por él.
+
+Algunas medidas de protección son:
+
+Utilizar HTTPS.
+Configurar cookies con HttpOnly.
+Configurar Secure para enviar cookies únicamente mediante HTTPS.
+Utilizar SameSite para reducir ataques CSRF.
+Regenerar el token después del inicio de sesión.
+Establecer tiempos de expiración.
+Invalidar las sesiones al cerrar sesión.
+Utilizar almacenamiento seguro y controlar los accesos.
+
+15. ¿Por qué se utiliza el código 303?
+
+El código 303 See Other indica que el navegador debe realizar una nueva petición GET a la dirección indicada.
+
+Después de enviar un formulario mediante POST, permite redirigir al usuario a otra página sin volver a enviar el formulario.
+
+303: Indica que se debe consultar otra dirección mediante GET.
+302: Es una redirección temporal cuyo comportamiento histórico puede variar según el cliente HTTP.
+301: Es una redirección permanente y normalmente se utiliza para cambios definitivos de URL.
+
+El código 303 es apropiado después de procesar formularios.
+
+16. Diferencia entre GET y POST
+
+GET /login:
+
+Solicita y muestra el formulario.
+Se utiliza para obtener información.
+No debería modificar datos.
+
+POST /login:
+
+Envía las credenciales al servidor.
+Se utiliza para procesar información.
+Permite validar los datos e iniciar una sesión.
+
+Las credenciales no deben enviarse mediante GET porque podrían aparecer en la URL, el historial del navegador y registros del servidor. Además, siempre se debe utilizar HTTPS para proteger los datos durante el transporte.
+
+17. ¿Por qué utilizar Path(__file__).parent?
+
+Path(__file__).parent permite construir una ruta basada en la ubicación del archivo Python.
+
+Esto es importante porque el programa podría ejecutarse desde diferentes carpetas. Si se utilizan rutas relativas, el sistema puede buscar los archivos en una ubicación incorrecta.
+
+Por ejemplo:
+
+BASE_DIR = Path(__file__).parent
+
+Así, las plantillas y otros archivos se buscan en relación con el archivo del proyecto, haciendo la aplicación más organizada y portable.
+
+18. Bonus: cambios para convertirlo en una aplicación real
+
+| Cambio                                             | Justificación                                                                                                         |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **1. Utilizar una base de datos**                  | Permitiría almacenar usuarios y sesiones de manera permanente y facilitaría el crecimiento de la aplicación.          |
+| **2. Aplicar hash a las contraseñas**              | Evitaría almacenar las contraseñas en texto plano y protegería la información de los usuarios.                        |
+| **3. Utilizar HTTPS y cookies seguras**            | Protegería las credenciales y los tokens durante la comunicación.                                                     |
+| **4. Implementar control de roles y permisos**     | Permitiría diferenciar usuarios normales, administradores y otros tipos de acceso.                                    |
+| **5. Utilizar variables de entorno**               | Evitaría guardar claves, contraseñas y configuraciones sensibles directamente en el código.                           |
+| **6. Validar y sanitizar los datos**               | Ayudaría a prevenir entradas maliciosas y errores en la información recibida.                                         |
+| **7. Implementar registro de errores y monitoreo** | Facilitaría detectar problemas, investigar fallos y mantener la aplicación.                                           |
+| **8. Utilizar pruebas automatizadas**              | Permitiría comprobar que el login, logout y las rutas protegidas funcionen correctamente después de realizar cambios. |
